@@ -169,7 +169,7 @@ Normal / Pneumonia Prediction + Confidence Score
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE.txt).
 
 ---
 
