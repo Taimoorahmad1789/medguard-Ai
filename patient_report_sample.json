@@ -1,0 +1,57 @@
+{
+  "patient_idx": 3,
+  "risk_score": 59.4,
+  "risk_zone": "YELLOW",
+  "diabetes": {
+    "probability": 38.29999923706055,
+    "prediction": "Diabetic",
+    "top_factors": [
+      {
+        "feature": "BMI",
+        "shap": -0.1411
+      },
+      {
+        "feature": "Glucose",
+        "shap": -0.0998
+      },
+      {
+        "feature": "DiabetesPedigreeFunction",
+        "shap": 0.0875
+      },
+      {
+        "feature": "Pregnancies",
+        "shap": 0.063
+      },
+      {
+        "feature": "BloodPressure",
+        "shap": -0.0433
+      }
+    ]
+  },
+  "heart_disease": {
+    "probability": 80.6,
+    "prediction": "Heart Disease",
+    "top_factors": [
+      {
+        "feature": "Smoker",
+        "shap": 0.1365
+      },
+      {
+        "feature": "MentHlth",
+        "shap": 0.0775
+      },
+      {
+        "feature": "NoDocbcCost",
+        "shap": 0.0584
+      },
+      {
+        "feature": "HighBP",
+        "shap": 0.0514
+      },
+      {
+        "feature": "PhysHlth",
+        "shap": 0.0467
+      }
+    ]
+  }
+}

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MedGuard AI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0f0d;--bg2:#0f1612;--bg3:#141c18;--card:#111816;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.10);
+  --green:#00e5a0;--green2:#00c489;--yellow:#f5c842;
+  --red:#ff4d6d;--red2:#c9233f;--blue:#4db8ff;
+  --text:#e8f0ec;--text2:#7a9186;--text3:#4a6158;
+  --font-display:'DM Serif Display',serif;
+  --font-mono:'DM Mono',monospace;
+  --font-body:'Outfit',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body)}
+.app{min-height:100vh;position:relative;overflow-x:hidden}
+.app::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0}
+.orb{position:fixed;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,229,160,0.06) 0%,transparent 70%);
+  top:-200px;left:-200px;pointer-events:none;z-index:0}
+.content{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 24px 60px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:28px 0 32px;border-bottom:1px solid var(--border);margin-bottom:40px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--green),#007a55);display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-family:var(--font-display);font-size:22px}
+.logo-sub{font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:.15em;margin-top:1px}
+.badge{font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:20px;letter-spacing:.1em}
+.tabs{display:flex;gap:4px;margin-bottom:32px;background:var(--bg2);padding:4px;border-radius:12px;border:1px solid var(--border);width:fit-content}
+.tab{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;transition:all .2s;color:var(--text3);background:transparent}
+.tab.active{background:var(--bg3);color:var(--green);border:1px solid var(--border2)}
+.tab:hover:not(.active){color:var(--text2)}
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.main-grid.no-result{grid-template-columns:1fr}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px}
+.card-title{font-family:var(--font-mono);font-size:10px;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';display:block;width:3px;height:12px;background:var(--green);border-radius:2px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:.1em}
+.field input{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;transition:border .2s;width:100%}
+.field input:focus{border-color:rgba(0,229,160,.4)}
+.btn{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:var(--green);color:#0a0f0d;font-weight:500}
+.btn-primary:hover{background:var(--green2);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+/* X-RAY UPLOAD */
+.upload-zone{border:2px dashed var(--border2);border-radius:16px;padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2);margin-bottom:20px}
+.upload-zone:hover,.upload-zone.dragover{border-color:rgba(0,229,160,.4);background:rgba(0,229,160,.04)}
+.upload-zone input{display:none}
+.upload-icon{font-size:40px;margin-bottom:12px}
+.upload-text{font-family:var(--font-mono);font-size:12px;color:var(--text2)}
+.upload-hint{font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:6px}
+.preview-img{max-width:100%;border-radius:12px;border:1px solid var(--border2);margin-bottom:16px;max-height:280px;object-fit:contain;display:block;margin-left:auto;margin-right:auto}
+.xray-result{text-align:center;padding:20px 0}
+.xray-label{font-family:var(--font-display);font-size:36px;margin-bottom:8px}
+.xray-conf{font-family:var(--font-mono);font-size:13px;color:var(--text2)}
+.xray-badge{display:inline-block;font-family:var(--font-mono);font-size:12px;padding:8px 24px;border-radius:20px;margin-top:12px;letter-spacing:.1em;font-weight:500}
+/* GAUGE */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:8px 0}
+.zone-badge{margin-top:16px;font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;padding:6px 18px;border-radius:20px;font-weight:500}
+.zone-GREEN{background:rgba(0,229,160,.12);color:var(--green);border:1px solid rgba(0,229,160,.3)}
+.zone-YELLOW{background:rgba(245,200,66,.12);color:var(--yellow);border:1px solid rgba(245,200,66,.3)}
+.zone-RED{background:rgba(255,77,109,.12);color:var(--red);border:1px solid rgba(255,77,109,.3)}
+/* SHAP */
+.shap-list{display:flex;flex-direction:column;gap:10px}
+.shap-item{display:flex;flex-direction:column;gap:4px}
+.shap-row{display:flex;align-items:center;justify-content:space-between}
+.shap-name{font-family:var(--font-mono);font-size:11px;color:var(--text2)}
+.shap-val{font-family:var(--font-mono);font-size:11px}
+.shap-val.pos{color:var(--red)}
+.shap-val.neg{color:var(--blue)}
+.shap-bar-bg{height:4px;background:var(--bg2);border-radius:2px;overflow:hidden}
+.shap-bar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.shap-bar-fill.pos{background:linear-gradient(90deg,var(--red2),var(--red))}
+.shap-bar-fill.neg{background:linear-gradient(90deg,#1a5a8a,var(--blue))}
+/* STAT */
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px}
+.stat-label{font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:.1em;margin-bottom:8px}
+.stat-value{font-family:var(--font-display);font-size:28px}
+.stat-sub{font-family:var(--font-mono);font-size:10px;color:var(--text3);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+/* ALERT */
+.alert{border-radius:12px;padding:14px 20px;font-family:var(--font-mono);font-size:12px;display:flex;align-items:center;gap:10px;margin-bottom:16px;letter-spacing:.05em}
+.alert-red{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.3);color:var(--red)}
+.alert-green{background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.2);color:var(--green)}
+.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.alert-dot.red{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.5s infinite}
+.alert-dot.green{background:var(--green)}
+.empty{text-align:center;padding:60px 20px;font-family:var(--font-mono);font-size:12px;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(0,229,160,.2);border-top-color:var(--green);animation:spin .7s linear infinite}
+.error-msg{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.3);color:var(--red);font-family:var(--font-mono);font-size:11px;padding:12px 16px;border-radius:10px;margin-top:12px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .4s ease forwards}
+@media(max-width:700px){.main-grid,.form-grid,.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+const API = "http://localhost:8000";
+
+function Gauge({score,zone}){
+  const r=80,cx=100,cy=100;
+  const toRad=d=>d*Math.PI/180;
+  const arc=a=>({x:cx+r*Math.cos(toRad(a)),y:cy+r*Math.sin(toRad(a))});
+  const startAngle=-210,endAngle=30;
+  const filled=(score/100)*(endAngle-startAngle);
+  const s=arc(startAngle),e=arc(startAngle+filled),trackEnd=arc(endAngle);
+  const large=filled>180?1:0;
+  const color=zone==="GREEN"?"#00e5a0":zone==="YELLOW"?"#f5c842":"#ff4d6d";
+  return(
+    <div className="gauge-wrap">
+      <svg width="200" height="150" viewBox="0 60 200 120" style={{overflow:'visible'}}>
+        <path d={`M ${arc(startAngle).x} ${arc(startAngle).y} A ${r} ${r} 0 1 1 ${trackEnd.x} ${trackEnd.y}`}
+          fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" strokeLinecap="round"/>
+        {score>0&&<path d={`M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`}
+          fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+          style={{filter:`drop-shadow(0 0 8px ${color}80)`}}/>}
+        <text style={{fontFamily:'DM Serif Display,serif',fontSize:48}} x={cx} y={cy+10} fill={color} textAnchor="middle" dominantBaseline="middle">{score}</text>
+        <text style={{fontFamily:'DM Mono,monospace',fontSize:10}} x={cx} y={cy+32} fill="#4a6158" textAnchor="middle">/ 100</text>
+      </svg>
+      <span className={`zone-badge zone-${zone}`}>
+        {zone==="RED"?"⚠ HIGH RISK":zone==="YELLOW"?"◆ MODERATE":"✓ LOW RISK"}
+      </span>
+    </div>
+  );
+}
+
+function ShapBars({factors}){
+  if(!factors?.length) return null;
+  const maxAbs=Math.max(...factors.map(f=>Math.abs(f.shap_value)));
+  return(
+    <div className="shap-list">
+      {factors.map((f,i)=>{
+        const pos=f.shap_value>0;
+        const pct=Math.round((Math.abs(f.shap_value)/maxAbs)*100);
+        return(
+          <div className="shap-item" key={i}>
+            <div className="shap-row">
+              <span className="shap-name">{f.feature}</span>
+              <span className={`shap-val ${pos?"pos":"neg"}`}>
+                {pos?"+":""}{f.shap_value.toFixed(4)}
+                <span style={{marginLeft:6,fontSize:9,opacity:.7}}>{pos?"↑ risk":"↓ safe"}</span>
+              </span>
+            </div>
+            <div className="shap-bar-bg">
+              <div className={`shap-bar-fill ${pos?"pos":"neg"}`} style={{width:`${pct}%`}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// X-Ray Upload Component
+function XrayTab({apiStatus}){
+  const [imgFile,setImgFile]   = useState(null);
+  const [preview,setPreview]   = useState(null);
+  const [result,setResult]     = useState(null);
+  const [loading,setLoading]   = useState(false);
+  const [error,setError]       = useState(null);
+  const [drag,setDrag]         = useState(false);
+  const inputRef = useRef();
+
+  const handleFile = (file) => {
+    if(!file||!file.type.startsWith("image/")) return;
+    setImgFile(file);
+    setResult(null); setError(null);
+    const reader = new FileReader();
+    reader.onload = e => setPreview(e.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyze = async () => {
+    if(!imgFile) return;
+    setLoading(true); setError(null);
+    try{
+      const fd = new FormData();
+      fd.append("file", imgFile);
+      const r = await fetch(`${API}/predict/xray`,{method:"POST",body:fd});
+      if(!r.ok) throw new Error(`API error ${r.status}`);
+      setResult(await r.json());
+    }catch(e){setError(e.message);}
+    finally{setLoading(false);}
+  };
+
+  const isPneumonia = result?.prediction === "PNEUMONIA";
+
+  return(
+    <div style={{maxWidth:600}}>
+      <div
+        className={`upload-zone ${drag?"dragover":""}`}
+        onClick={()=>inputRef.current.click()}
+        onDragOver={e=>{e.preventDefault();setDrag(true)}}
+        onDragLeave={()=>setDrag(false)}
+        onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0])}}
+      >
+        <input ref={inputRef} type="file" accept="image/*" onChange={e=>handleFile(e.target.files[0])}/>
+        {preview
+          ? <img src={preview} className="preview-img" alt="X-Ray preview"/>
+          : <>
+              <div className="upload-icon">🫁</div>
+              <div className="upload-text">X-Ray image yahan drop karo ya click karo</div>
+              <div className="upload-hint">JPG / PNG / JPEG — Chest X-Ray</div>
+            </>
+        }
+      </div>
+
+      {preview && !result && (
+        <button className="btn btn-primary" onClick={handleAnalyze} disabled={loading||apiStatus!=="ok"}>
+          {loading?<><div className="spinner"/>Analyzing X-Ray...</>:<>🫁 &nbsp;Analyze X-Ray</>}
+        </button>
+      )}
+
+      {error && <div className="error-msg">{error}</div>}
+
+      {result && (
+        <div className="card fade-up" style={{marginTop:20}}>
+          <div className="card-title">X-Ray Analysis Result</div>
+          <div className="xray-result">
+            <div className="xray-label" style={{color:isPneumonia?"var(--red)":"var(--green)"}}>
+              {isPneumonia?"⚠ PNEUMONIA":"✓ NORMAL"}
+            </div>
+            <div className="xray-conf">
+              Confidence: <strong>{result.confidence}%</strong>
+            </div>
+            <div className={`xray-badge zone-${isPneumonia?"RED":"GREEN"}`} style={{marginTop:12}}>
+              {isPneumonia?"HIGH RISK — Medical attention needed":"Low Risk — No pneumonia detected"}
+            </div>
+
+            <div style={{marginTop:24,textAlign:'left'}}>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--text3)',letterSpacing:'.1em',marginBottom:12}}>PROBABILITY BREAKDOWN</div>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text2)',width:100}}>PNEUMONIA</span>
+                <div style={{flex:1,height:6,background:'var(--bg2)',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{width:`${result.probability}%`,height:'100%',background:'linear-gradient(90deg,#c9233f,#ff4d6d)',borderRadius:3,transition:'width .8s'}}/>
+                </div>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--red)',width:45,textAlign:'right'}}>{result.probability}%</span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text2)',width:100}}>NORMAL</span>
+                <div style={{flex:1,height:6,background:'var(--bg2)',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{width:`${100-result.probability}%`,height:'100%',background:'linear-gradient(90deg,#007a55,#00e5a0)',borderRadius:3,transition:'width .8s'}}/>
+                </div>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--green)',width:45,textAlign:'right'}}>{(100-result.probability).toFixed(1)}%</span>
+              </div>
+            </div>
+
+            <button className="btn" style={{marginTop:20,background:'var(--bg2)',color:'var(--text2)',border:'1px solid var(--border2)',fontSize:11}}
+              onClick={()=>{setResult(null);setPreview(null);setImgFile(null)}}>
+              ↩ New X-Ray
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const D_DEF={Pregnancies:6,Glucose:148,BloodPressure:72,SkinThickness:35,Insulin:0,BMI:33.6,DiabetesPedigreeFunction:0.627,Age:50};
+const H_DEF={HighBP:1,HighChol:1,CholCheck:1,BMI:28.5,Smoker:1,Stroke:0,Diabetes:0,PhysActivity:0,Fruits:0,Veggies:1,HvyAlcoholConsump:0,AnyHealthcare:1,NoDocbcCost:0,GenHlth:3,MentHlth:5,PhysHlth:10,DiffWalk:1,Sex:1,Age:9,Education:4,Income:5};
+
+function App(){
+  const [tab,setTab]           = useState("combined");
+  const [dForm,setDForm]       = useState(D_DEF);
+  const [hForm,setHForm]       = useState(H_DEF);
+  const [result,setResult]     = useState(null);
+  const [loading,setLoading]   = useState(false);
+  const [error,setError]       = useState(null);
+  const [apiStatus,setApiStatus] = useState("checking");
+
+  useEffect(()=>{
+    fetch(`${API}/health`).then(r=>r.json()).then(()=>setApiStatus("ok")).catch(()=>setApiStatus("offline"));
+  },[]);
+
+  const handleSubmit = async()=>{
+    setLoading(true);setError(null);setResult(null);
+    try{
+      let endpoint,body;
+      if(tab==="diabetes"){endpoint="/predict/diabetes";body=dForm;}
+      else if(tab==="heart"){endpoint="/predict/heart";body=hForm;}
+      else{endpoint="/predict/combined";body={diabetes:dForm,heart:hForm};}
+      const r=await fetch(`${API}${endpoint}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!r.ok) throw new Error(`API error ${r.status} — FastAPI server chalu hai?`);
+      setResult(await r.json());
+    }catch(e){setError(e.message);}
+    finally{setLoading(false);}
+  };
+
+  const zoneColor=z=>z==="RED"?"var(--red)":z==="YELLOW"?"var(--yellow)":"var(--green)";
+
+  return(
+    <div className="app">
+      <div className="orb"/>
+      <div className="content">
+
+        {/* HEADER */}
+        <div className="header">
+          <div className="logo">
+            <div className="logo-icon">🛡</div>
+            <div>
+              <div className="logo-text">MedGuard AI</div>
+              <div className="logo-sub">MULTIMODAL DISEASE SCREENING</div>
+            </div>
+          </div>
+          <span className="badge" style={{
+            color:apiStatus==="ok"?"var(--green)":apiStatus==="checking"?"var(--yellow)":"var(--red)",
+            border:`1px solid ${apiStatus==="ok"?"rgba(0,229,160,.3)":apiStatus==="checking"?"rgba(245,200,66,.3)":"rgba(255,77,109,.3)"}`,
+            background:apiStatus==="ok"?"rgba(0,229,160,.06)":"rgba(255,77,109,.06)"
+          }}>
+            {apiStatus==="ok"?"● API ONLINE":apiStatus==="checking"?"○ CHECKING...":"● API OFFLINE"}
+          </span>
+        </div>
+
+        {/* TABS */}
+        <div className="tabs">
+          {[["combined","⬡ Combined"],["diabetes","◈ Diabetes"],["heart","♡ Heart"],["xray","🫁 X-Ray"]].map(([t,label])=>(
+            <button key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>{setTab(t);setResult(null);setError(null);}}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* X-RAY TAB */}
+        {tab==="xray" && <XrayTab apiStatus={apiStatus}/>}
+
+        {/* OTHER TABS */}
+        {tab!=="xray" && (
+          <div className={`main-grid ${result?"":"no-result"}`}>
+            <div>
+              {(tab==="diabetes"||tab==="combined")&&(
+                <div className="card">
+                  <div className="card-title">Diabetes Patient Data</div>
+                  <div className="form-grid">
+                    {Object.entries(D_DEF).map(([k])=>(
+                      <div className="field" key={k}>
+                        <label>{k.replace(/([A-Z])/g,' $1').trim()}</label>
+                        <input type="number" step="any" value={dForm[k]}
+                          onChange={e=>setDForm({...dForm,[k]:parseFloat(e.target.value)||0})}/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(tab==="heart"||tab==="combined")&&(
+                <div className="card">
+                  <div className="card-title">Heart Disease Patient Data</div>
+                  <div className="form-grid">
+                    {Object.entries(H_DEF).map(([k])=>(
+                      <div className="field" key={k}>
+                        <label>{k}</label>
+                        <input type="number" step="any" value={hForm[k]}
+                          onChange={e=>setHForm({...hForm,[k]:parseFloat(e.target.value)||0})}/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button className="btn btn-primary" onClick={handleSubmit} disabled={loading||apiStatus!=="ok"}>
+                {loading?<><div className="spinner"/>Analyzing...</>:<>▶ &nbsp;Run Analysis</>}
+              </button>
+              {apiStatus==="offline"&&<div className="error-msg" style={{marginTop:12}}>⚠ FastAPI offline — Jupyter mein uvicorn main:app --reload run karo</div>}
+              {error&&<div className="error-msg">{error}</div>}
+            </div>
+
+            {result&&(
+              <div className="fade-up">
+                {tab==="combined"&&<>
+                  {result.alert
+                    ?<div className="alert alert-red"><div className="alert-dot red"/>HIGH RISK — Immediate medical consultation recommended</div>
+                    :<div className="alert alert-green"><div className="alert-dot green"/>Risk manageable — Continue regular monitoring</div>
+                  }
+                  <div className="card">
+                    <div className="card-title">Overall Risk Score</div>
+                    <Gauge score={result.risk_score} zone={result.risk_zone}/>
+                  </div>
+                  <div className="grid2">
+                    <div className="stat">
+                      <div className="stat-label">DIABETES RISK</div>
+                      <div className="stat-value" style={{color:zoneColor(result.diabetes.risk_zone)}}>{result.diabetes.probability}%</div>
+                      <div className="stat-sub">{result.diabetes.prediction}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">HEART DISEASE RISK</div>
+                      <div className="stat-value" style={{color:zoneColor(result.heart_disease.risk_zone)}}>{result.heart_disease.probability}%</div>
+                      <div className="stat-sub">{result.heart_disease.prediction}</div>
+                    </div>
+                  </div>
+                  <div className="card">
+                    <div className="card-title">Diabetes — SHAP Risk Factors</div>
+                    <ShapBars factors={result.diabetes.top_factors}/>
+                  </div>
+                  <div className="card">
+                    <div className="card-title">Heart Disease — SHAP Risk Factors</div>
+                    <ShapBars factors={result.heart_disease.top_factors}/>
+                  </div>
+                </>}
+                {(tab==="diabetes"||tab==="heart")&&<>
+                  <div className="card">
+                    <div className="card-title">Risk Score</div>
+                    <Gauge score={result.probability} zone={result.risk_zone}/>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-label">PREDICTION</div>
+                    <div className="stat-value" style={{fontSize:20,color:zoneColor(result.risk_zone)}}>{result.prediction}</div>
+                    <div className="stat-sub">Threshold: {result.threshold}</div>
+                  </div>
+                  <div className="card">
+                    <div className="card-title">Top Risk Factors (SHAP)</div>
+                    <ShapBars factors={result.top_factors}/>
+                  </div>
+                </>}
+              </div>
+            )}
+
+            {!result&&!loading&&(
+              <div className="empty">
+                <div className="empty-icon">⬡</div>
+                <div>Patient data bharke</div>
+                <div style={{marginTop:6,color:'var(--green)'}}>Run Analysis</div>
+                <div>click karo</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

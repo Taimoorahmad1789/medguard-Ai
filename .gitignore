@@ -1,0 +1,23 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# X-Ray Dataset - Too large
+data/
+archive (30).zip
+
+# Temp
+*.tmp
+.DS_Store
+Thumbs.db

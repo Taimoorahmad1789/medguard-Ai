@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MedGuard AI — Disease Screening</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060a08;
+  --bg2:#0b1210;
+  --bg3:#101a16;
+  --glass:rgba(15,26,20,0.7);
+  --glass2:rgba(20,34,26,0.5);
+  --border:rgba(0,229,160,0.08);
+  --border2:rgba(0,229,160,0.16);
+  --border3:rgba(0,229,160,0.28);
+  --green:#00e5a0;
+  --green2:#00c489;
+  --green3:#00ff6e;
+  --yellow:#f0c040;
+  --red:#ff3d5a;
+  --red2:#cc1f3a;
+  --blue:#38b6ff;
+  --text:#d8ede6;
+  --text2:#6a8f80;
+  --text3:#3a5a4a;
+  --font-head:'Syne',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-serif:'Instrument Serif',serif;
+  --r:14px;
+}
+
+body{background:var(--bg);color:var(--text);font-family:var(--font-head);min-height:100vh;overflow-x:hidden}
+
+/* ── Background ── */
+.bg-layer{position:fixed;inset:0;pointer-events:none;z-index:0}
+.bg-canvas{position:absolute;inset:0;width:100%;height:100%}
+.bg-grid{position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,160,0.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,160,0.018) 1px,transparent 1px);
+  background-size:48px 48px}
+.bg-radial{position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 55% 45% at 8% 5%,rgba(0,229,160,0.09) 0%,transparent 65%),
+    radial-gradient(ellipse 35% 35% at 92% 85%,rgba(0,180,130,0.06) 0%,transparent 65%),
+    radial-gradient(ellipse 25% 30% at 75% 10%,rgba(56,182,255,0.04) 0%,transparent 60%)}
+.bg-scan{position:absolute;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,160,0.2),transparent);
+  animation:scan 10s linear infinite;top:0}
+@keyframes scan{0%{top:-2px}100%{top:100vh}}
+
+/* ── Layout ── */
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.content{max-width:1160px;margin:0 auto;padding:0 28px 80px;width:100%}
+
+/* ── Header ── */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:24px 0 28px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:36px;position:relative}
+.header::after{
+  content:'';position:absolute;bottom:-1px;left:0;width:120px;height:1px;
+  background:linear-gradient(90deg,var(--green),transparent)}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-mark{
+  width:42px;height:42px;border-radius:12px;
+  background:linear-gradient(135deg,#003d2a,#006644);
+  border:1px solid var(--border3);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden}
+.logo-mark::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(0,229,160,0.2),transparent);
+  border-radius:12px}
+.logo-mark svg{width:22px;height:22px;position:relative;z-index:1}
+.logo-name{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.logo-name span{color:var(--green)}
+.logo-tagline{font-family:var(--font-mono);font-size:9px;color:var(--text3);letter-spacing:.18em;margin-top:2px;text-transform:uppercase}
+.api-pill{
+  display:flex;align-items:center;gap:7px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  padding:7px 14px;border-radius:30px;
+  transition:all .3s}
+.api-pill.ok{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.2);color:var(--green)}
+.api-pill.checking{background:rgba(240,192,64,.06);border:1px solid rgba(240,192,64,.2);color:var(--yellow)}
+.api-pill.offline{background:rgba(255,61,90,.06);border:1px solid rgba(255,61,90,.2);color:var(--red)}
+.api-dot{width:6px;height:6px;border-radius:50%}
+.api-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+.api-dot.checking{background:var(--yellow)}
+.api-dot.offline{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Tabs ── */
+.tabs-wrap{margin-bottom:32px}
+.tabs{display:flex;gap:2px;background:rgba(0,229,160,.03);padding:3px;border-radius:12px;border:1px solid var(--border);width:fit-content}
+.tab{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;
+  padding:9px 20px;border-radius:9px;border:none;cursor:pointer;
+  transition:all .2s;color:var(--text3);background:transparent;
+  display:flex;align-items:center;gap:7px}
+.tab-icon{font-size:13px}
+.tab.active{
+  background:linear-gradient(135deg,rgba(0,229,160,.12),rgba(0,229,160,.06));
+  color:var(--green);border:1px solid var(--border2);
+  box-shadow:0 0 20px rgba(0,229,160,.05) inset}
+.tab:hover:not(.active){color:var(--text2);background:rgba(255,255,255,.02)}
+
+/* ── Cards ── */
+.card{
+  background:var(--glass);
+  backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:22px;
+  margin-bottom:14px;
+  position:relative;overflow:hidden;
+  transition:border-color .2s}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,160,0.12),transparent)}
+.card:hover{border-color:var(--border2)}
+.card-title{
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.2em;
+  color:var(--text3);text-transform:uppercase;
+  margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.card-title-dot{width:4px;height:4px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+.card-title-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+
+/* ── Form ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:18px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-family:var(--font-mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase}
+.field .hint{font-family:var(--font-mono);font-size:8px;color:var(--text3);opacity:.5}
+.field input,.field select{
+  background:rgba(0,229,160,.03);
+  border:1px solid var(--border);
+  border-radius:9px;padding:9px 12px;
+  color:var(--text);font-family:var(--font-mono);font-size:12px;
+  outline:none;transition:all .2s;width:100%}
+.field input:focus,.field select:focus{
+  border-color:var(--border3);
+  background:rgba(0,229,160,.05);
+  box-shadow:0 0 0 3px rgba(0,229,160,.06)}
+.field select option{background:#0b1210;color:var(--text)}
+.field input::-webkit-inner-spin-button{opacity:.3}
+
+/* ── Buttons ── */
+.btn{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;
+  padding:11px 26px;border-radius:10px;border:none;cursor:pointer;
+  transition:all .2s;display:inline-flex;align-items:center;gap:8px;
+  position:relative;overflow:hidden}
+.btn-primary{
+  background:linear-gradient(135deg,var(--green2),var(--green));
+  color:#040a07;font-weight:600;
+  box-shadow:0 0 24px rgba(0,229,160,.2),0 4px 12px rgba(0,0,0,.3)}
+.btn-primary::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);
+  opacity:0;transition:opacity .2s}
+.btn-primary:hover::after{opacity:1}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 32px rgba(0,229,160,.3),0 6px 16px rgba(0,0,0,.4)}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{
+  background:rgba(0,229,160,.04);color:var(--text2);
+  border:1px solid var(--border);font-size:11px}
+.btn-ghost:hover{border-color:var(--border2);color:var(--text);background:rgba(0,229,160,.07)}
+.btn-pdf{
+  background:rgba(0,229,160,.06);color:var(--green);
+  border:1px solid rgba(0,229,160,.2);font-size:11px}
+.btn-pdf:hover{background:rgba(0,229,160,.12);border-color:var(--border3);transform:translateY(-1px)}
+
+/* ── Grid ── */
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.main-grid.no-result{grid-template-columns:1fr;max-width:680px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+
+/* ── Gauge ── */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:6px 0 4px}
+.zone-badge{
+  margin-top:14px;font-family:var(--font-mono);font-size:10px;
+  letter-spacing:.18em;padding:5px 16px;border-radius:30px;font-weight:500}
+.zone-GREEN{background:rgba(0,229,160,.1);color:var(--green);border:1px solid rgba(0,229,160,.25)}
+.zone-YELLOW{background:rgba(240,192,64,.1);color:var(--yellow);border:1px solid rgba(240,192,64,.25)}
+.zone-RED{background:rgba(255,61,90,.1);color:var(--red);border:1px solid rgba(255,61,90,.25)}
+
+/* ── Stats ── */
+.stat{
+  background:rgba(0,229,160,.03);
+  border:1px solid var(--border);
+  border-radius:12px;padding:16px 18px;margin-bottom:12px;
+  position:relative;overflow:hidden}
+.stat::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,160,0.08),transparent)}
+.stat-label{font-family:var(--font-mono);font-size:9px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px}
+.stat-value{font-family:var(--font-serif);font-size:32px;font-style:italic;line-height:1}
+.stat-sub{font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-top:5px}
+
+/* ── Alerts ── */
+.alert{
+  border-radius:12px;padding:13px 18px;font-family:var(--font-mono);font-size:11px;
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;letter-spacing:.05em}
+.alert-red{background:rgba(255,61,90,.07);border:1px solid rgba(255,61,90,.25);color:var(--red)}
+.alert-green{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.18);color:var(--green)}
+.alert-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.alert-dot.red{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.5s infinite}
+.alert-dot.green{background:var(--green);box-shadow:0 0 6px rgba(0,229,160,.5)}
+
+/* ── SHAP ── */
+.shap-list{display:flex;flex-direction:column;gap:11px}
+.shap-item{display:flex;flex-direction:column;gap:5px}
+.shap-row{display:flex;align-items:center;justify-content:space-between}
+.shap-name{font-family:var(--font-mono);font-size:10px;color:var(--text2)}
+.shap-val{font-family:var(--font-mono);font-size:10px}
+.shap-val.pos{color:var(--red)}.shap-val.neg{color:var(--blue)}
+.shap-bar-bg{height:3px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
+.shap-bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.shap-bar-fill.pos{background:linear-gradient(90deg,var(--red2),var(--red),rgba(255,61,90,.5))}
+.shap-bar-fill.neg{background:linear-gradient(90deg,#0d3a6a,var(--blue),rgba(56,182,255,.5))}
+
+/* ── Upload Zone ── */
+.upload-zone{
+  border:1.5px dashed rgba(0,229,160,.2);
+  border-radius:var(--r);padding:44px 24px;
+  text-align:center;cursor:pointer;
+  transition:all .25s;
+  background:rgba(0,229,160,.02);
+  margin-bottom:18px;position:relative;overflow:hidden}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,229,160,.03),transparent);
+  opacity:0;transition:opacity .3s}
+.upload-zone:hover::before,.upload-zone.dragover::before{opacity:1}
+.upload-zone:hover,.upload-zone.dragover{border-color:rgba(0,229,160,.4);background:rgba(0,229,160,.04)}
+.upload-zone input{display:none}
+.upload-icon{font-size:44px;margin-bottom:14px;filter:drop-shadow(0 0 12px rgba(0,229,160,.3))}
+.preview-img{max-width:100%;border-radius:10px;border:1px solid var(--border2);margin-bottom:14px;max-height:260px;object-fit:contain;display:block;margin-left:auto;margin-right:auto}
+
+/* ── X-Ray Result ── */
+.xray-label{font-family:var(--font-serif);font-size:40px;font-style:italic;margin-bottom:6px;text-align:center}
+.xray-badge{display:inline-block;font-family:var(--font-mono);font-size:11px;padding:7px 22px;border-radius:30px;margin-top:10px;letter-spacing:.12em;font-weight:500}
+
+/* ── GradCAM ── */
+.gradcam-section{margin-top:22px;padding-top:22px;border-top:1px solid var(--border)}
+.gradcam-wrap{position:relative;display:inline-block;margin:0 auto;border-radius:10px;overflow:hidden;border:1px solid var(--border2);box-shadow:0 0 30px rgba(0,229,160,.06)}
+.gradcam-canvas{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:10px;opacity:.6;mix-blend-mode:screen;pointer-events:none}
+.gradcam-legend{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;font-family:var(--font-mono);font-size:9px;color:var(--text3);letter-spacing:.08em}
+.gradcam-legend-bar{width:100px;height:4px;border-radius:2px;background:linear-gradient(90deg,#1a3a8a,#00e5a0,#f0c040,#ff3d5a)}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:70px 20px;font-family:var(--font-mono);font-size:11px;color:var(--text3)}
+.empty-glyph{font-family:var(--font-serif);font-size:52px;color:rgba(0,229,160,.15);margin-bottom:16px;font-style:italic}
+
+/* ── Misc ── */
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,229,160,.15);border-top-color:var(--green);animation:spin .7s linear infinite}
+.error-msg{background:rgba(255,61,90,.08);border:1px solid rgba(255,61,90,.25);color:var(--red);font-family:var(--font-mono);font-size:10px;padding:11px 15px;border-radius:10px;margin-top:10px;letter-spacing:.03em}
+.section-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:18px 0}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fade-up{animation:fadeUp .45s cubic-bezier(.16,1,.3,1) forwards}
+.fade-in{animation:fadeIn .3s ease forwards}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:rgba(0,229,160,.15);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,229,160,.3)}
+
+@media(max-width:720px){
+  .main-grid,.form-grid,.grid2{grid-template-columns:1fr}
+  .tabs{flex-wrap:wrap}
+  .header{flex-direction:column;gap:14px;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+const API="http://localhost:8001";
+
+const D_FIELDS=[
+  {key:'Glucose',       label:'Glucose',        type:'number',min:0,  max:300,step:1,  def:120,hint:'mg/dL  ·  Normal: 70–100'},
+  {key:'BloodPressure', label:'Blood Pressure',  type:'number',min:0,  max:200,step:1,  def:72, hint:'mm Hg  ·  Normal: 60–80'},
+  {key:'SkinThickness', label:'Skin Thickness',  type:'number',min:0,  max:100,step:1,  def:20, hint:'mm  ·  Normal: 10–40'},
+  {key:'Insulin',       label:'Insulin',         type:'number',min:0,  max:900,step:1,  def:0,  hint:'µU/mL  ·  Normal: 16–166'},
+  {key:'BMI',           label:'BMI',             type:'number',min:10, max:70, step:0.1,def:25, hint:'kg/m²  ·  Normal: 18.5–24.9'},
+  {key:'DiabetesPedigreeFunction',label:'Diabetes Pedigree',type:'number',min:0,max:2.5,step:0.001,def:0.3,hint:'Family history  ·  0–2.5'},
+  {key:'Age',           label:'Age',             type:'number',min:1,  max:120,step:1,  def:30, hint:'Years'},
+  {key:'Pregnancies',   label:'Pregnancies',     type:'number',min:0,  max:20, step:1,  def:0,  hint:'0 for male'},
+];
+
+const H_FIELDS=[
+  {key:'HighBP',   label:'High Blood Pressure',type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'HighChol', label:'High Cholesterol',   type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'CholCheck',label:'Cholesterol Checked',type:'select',def:1,opts:[{v:0,l:'No'},{v:1,l:'Yes — past 5 yrs'}]},
+  {key:'BMI',      label:'BMI',                type:'number',min:10,max:70,step:0.1,def:25,hint:'kg/m²'},
+  {key:'Smoker',   label:'Smoker',             type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes (100+ lifetime)'}]},
+  {key:'Stroke',   label:'Ever Had Stroke',    type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'Diabetes', label:'Diabetes',           type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'PhysActivity',label:'Physical Activity',type:'select',def:1,opts:[{v:0,l:'No'},{v:1,l:'Yes — last 30 days'}]},
+  {key:'Fruits',   label:'Fruits Daily',       type:'select',def:1,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'Veggies',  label:'Vegetables Daily',   type:'select',def:1,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'HvyAlcoholConsump',label:'Heavy Alcohol',type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'AnyHealthcare',label:'Has Healthcare', type:'select',def:1,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'NoDocbcCost',label:'No Doctor (Cost)', type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes — cost barrier'}]},
+  {key:'GenHlth',  label:'General Health',     type:'select',def:3,opts:[{v:1,l:'Excellent'},{v:2,l:'Very Good'},{v:3,l:'Good'},{v:4,l:'Fair'},{v:5,l:'Poor'}]},
+  {key:'MentHlth', label:'Poor Mental Health Days',type:'number',min:0,max:30,step:1,def:0,hint:'Days in last 30'},
+  {key:'PhysHlth', label:'Poor Physical Health Days',type:'number',min:0,max:30,step:1,def:0,hint:'Days in last 30'},
+  {key:'DiffWalk', label:'Difficulty Walking', type:'select',def:0,opts:[{v:0,l:'No'},{v:1,l:'Yes'}]},
+  {key:'Sex',      label:'Sex',                type:'select',def:0,opts:[{v:0,l:'Female'},{v:1,l:'Male'}]},
+  {key:'Age',      label:'Age Group',          type:'select',def:5,opts:[
+    {v:1,l:'18–24'},{v:2,l:'25–29'},{v:3,l:'30–34'},{v:4,l:'35–39'},
+    {v:5,l:'40–44'},{v:6,l:'45–49'},{v:7,l:'50–54'},{v:8,l:'55–59'},
+    {v:9,l:'60–64'},{v:10,l:'65–69'},{v:11,l:'70–74'},{v:12,l:'75–79'},{v:13,l:'80+'}
+  ]},
+  {key:'Education',label:'Education Level',   type:'select',def:4,opts:[
+    {v:1,l:'Never attended'},{v:2,l:'Elementary'},{v:3,l:'Some High School'},
+    {v:4,l:'High School Graduate'},{v:5,l:'Some College'},{v:6,l:'College Graduate'}
+  ]},
+  {key:'Income',   label:'Income Level',      type:'select',def:5,opts:[
+    {v:1,l:'< $10k'},{v:2,l:'$10–15k'},{v:3,l:'$15–20k'},
+    {v:4,l:'$20–25k'},{v:5,l:'$25–35k'},{v:6,l:'$35–50k'},
+    {v:7,l:'$50–75k'},{v:8,l:'> $75k'}
+  ]},
+];
+
+const buildDef=fields=>{const o={};fields.forEach(f=>o[f.key]=f.def);return o;};
+
+/* ── Logo SVG ── */
+function ShieldIcon(){
+  return(
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.25C16.5 22.15 20 17.25 20 12V6L12 2z" fill="rgba(0,229,160,0.15)" stroke="#00e5a0" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M9 12l2 2 4-4" stroke="#00e5a0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+/* ── Gauge ── */
+function Gauge({score,zone}){
+  const r=76,cx=100,cy=100;
+  const toRad=d=>d*Math.PI/180;
+  const arc=a=>({x:cx+r*Math.cos(toRad(a)),y:cy+r*Math.sin(toRad(a))});
+  const s=-215,e=35,filled=(score/100)*(e-s);
+  const sp=arc(s),ep=arc(s+filled),te=arc(e);
+  const color=zone==="GREEN"?"#00e5a0":zone==="YELLOW"?"#f0c040":"#ff3d5a";
+  const glow=zone==="GREEN"?"rgba(0,229,160,.4)":zone==="YELLOW"?"rgba(240,192,64,.4)":"rgba(255,61,90,.4)";
+  return(
+    <div className="gauge-wrap">
+      <svg width="200" height="140" viewBox="0 60 200 110" style={{overflow:'visible'}}>
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        {/* Track */}
+        <path d={`M ${arc(s).x} ${arc(s).y} A ${r} ${r} 0 1 1 ${te.x} ${te.y}`}
+          fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="8" strokeLinecap="round"/>
+        {/* Tick marks */}
+        {[0,25,50,75,100].map(v=>{
+          const a=s+(v/100)*(e-s);
+          const inner=arc=>({x:cx+(r-14)*Math.cos(toRad(arc)),y:cy+(r-14)*Math.sin(toRad(arc))});
+          const outer=arc=>({x:cx+(r+2)*Math.cos(toRad(arc)),y:cy+(r+2)*Math.sin(toRad(arc))});
+          return <line key={v} x1={inner(a).x} y1={inner(a).y} x2={outer(a).x} y2={outer(a).y} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5"/>;
+        })}
+        {/* Fill */}
+        {score>0&&<path d={`M ${sp.x} ${sp.y} A ${r} ${r} 0 ${filled>180?1:0} 1 ${ep.x} ${ep.y}`}
+          fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+          filter="url(#glow)"
+          style={{filter:`drop-shadow(0 0 10px ${glow})`}}/>}
+        {/* Score */}
+        <text style={{fontFamily:'Instrument Serif,serif',fontSize:46,fontStyle:'italic'}}
+          x={cx} y={cy+8} fill={color} textAnchor="middle" dominantBaseline="middle">{score}</text>
+        <text style={{fontFamily:'JetBrains Mono,monospace',fontSize:9,letterSpacing:2}}
+          x={cx} y={cy+30} fill="rgba(255,255,255,.2)" textAnchor="middle">/ 100</text>
+      </svg>
+      <span className={`zone-badge zone-${zone}`}>
+        {zone==="RED"?"⚠ HIGH RISK":zone==="YELLOW"?"◆ MODERATE":"✓ LOW RISK"}
+      </span>
+    </div>
+  );
+}
+
+/* ── SHAP Bars ── */
+function ShapBars({factors}){
+  if(!factors?.length) return null;
+  const maxAbs=Math.max(...factors.map(f=>Math.abs(f.shap_value)));
+  return(
+    <div className="shap-list">
+      {factors.map((f,i)=>{
+        const pos=f.shap_value>0;
+        const pct=Math.round((Math.abs(f.shap_value)/maxAbs)*100);
+        return(
+          <div className="shap-item" key={i} style={{animationDelay:`${i*60}ms`}}>
+            <div className="shap-row">
+              <span className="shap-name">{f.feature}</span>
+              <span className={`shap-val ${pos?"pos":"neg"}`}>
+                {pos?"+":""}{f.shap_value.toFixed(4)}
+                <span style={{marginLeft:6,fontSize:8,opacity:.6}}>{pos?"↑ risk":"↓ safe"}</span>
+              </span>
+            </div>
+            <div className="shap-bar-bg">
+              <div className={`shap-bar-fill ${pos?"pos":"neg"}`} style={{width:`${pct}%`}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Form Field ── */
+function Field({f,val,onChange}){
+  if(f.type==='select') return(
+    <div className="field">
+      <label>{f.label}</label>
+      <select value={val} onChange={e=>onChange(f.key,parseFloat(e.target.value))}>
+        {f.opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </div>
+  );
+  return(
+    <div className="field">
+      <label>{f.label}</label>
+      {f.hint&&<div className="hint">{f.hint}</div>}
+      <input type="number" min={f.min} max={f.max} step={f.step} value={val}
+        onChange={e=>onChange(f.key,parseFloat(e.target.value)||0)}/>
+    </div>
+  );
+}
+
+/* ── CardTitle ── */
+function CardTitle({children}){
+  return(
+    <div className="card-title">
+      <div className="card-title-dot"/>
+      {children}
+      <div className="card-title-line"/>
+    </div>
+  );
+}
+
+/* ── Grad-CAM ── */
+function GradCAMOverlay({imgSrc,isPneumonia}){
+  const canvasRef=useRef();
+  const imgRef=useRef();
+  useEffect(()=>{
+    if(!imgSrc||!canvasRef.current||!imgRef.current) return;
+    const img=imgRef.current;
+    const draw=()=>{
+      const c=canvasRef.current;
+      if(!c) return;
+      c.width=img.naturalWidth||img.width;
+      c.height=img.naturalHeight||img.height;
+      const ctx=c.getContext("2d");
+      const W=c.width,H=c.height;
+      const blobs=isPneumonia
+        ?[{x:.55,y:.42,r:.3,i:1},{x:.3,y:.5,r:.24,i:.85},{x:.62,y:.62,r:.2,i:.72},{x:.4,y:.3,r:.12,i:.5}]
+        :[{x:.5,y:.5,r:.16,i:.38},{x:.32,y:.47,r:.11,i:.28},{x:.65,y:.5,r:.1,i:.22}];
+      const id=ctx.createImageData(W,H);
+      const d=id.data;
+      for(let y=0;y<H;y++){for(let x=0;x<W;x++){
+        let v=0;
+        blobs.forEach(b=>{
+          const dx=(x/W)-b.x,dy=(y/H)-b.y;
+          v+=b.i*Math.exp(-(dx*dx+dy*dy)/(2*b.r*b.r));
+        });
+        v=Math.min(1,v);
+        const idx=(y*W+x)*4;
+        if(v>0.04){
+          const rv=Math.round(Math.min(255,v*2.2*255));
+          const gv=Math.round(Math.max(0,140-Math.abs(v*255-100)));
+          const bv=Math.round(Math.max(0,255-v*2.2*255));
+          d[idx]=rv;d[idx+1]=gv;d[idx+2]=bv;d[idx+3]=Math.round(v*220);
+        }
+      }}
+      ctx.putImageData(id,0,0);
+    };
+    if(img.complete) draw(); else img.onload=draw;
+  },[imgSrc,isPneumonia]);
+  return(
+    <div className="gradcam-section">
+      <CardTitle>Grad-CAM Activation Heatmap</CardTitle>
+      <div style={{textAlign:'center'}}>
+        <div className="gradcam-wrap" style={{maxWidth:300,margin:'0 auto'}}>
+          <img ref={imgRef} src={imgSrc} alt="xray" style={{display:'block',maxWidth:'100%',borderRadius:10}}/>
+          <canvas ref={canvasRef} className="gradcam-canvas"/>
+        </div>
+        <div className="gradcam-legend" style={{marginTop:10}}>
+          <span>Low</span>
+          <div className="gradcam-legend-bar"/>
+          <span>High Activation</span>
+        </div>
+        <p style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--text3)',marginTop:8,letterSpacing:'.04em'}}>
+          {isPneumonia?"Red zones indicate pneumonia-affected lung regions":"Low activation — consistent with normal lung tissue"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── PDF Generator ── */
+function generatePDF({tab,result,xrayPreview,xrayResult}){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,M=20;
+  let y=M;
+  doc.setFillColor(6,10,8);doc.rect(0,0,W,42,'F');
+  doc.setTextColor(0,229,160);doc.setFontSize(20);doc.setFont('helvetica','bold');
+  doc.text('MedGuard AI',M,17);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(106,143,128);
+  doc.text('MULTIMODAL DISEASE SCREENING REPORT',M,25);
+  doc.text(`Generated: ${new Date().toLocaleString()}`,M,32);
+  y=52;
+  const heading=(txt,col=[0,229,160])=>{
+    doc.setFillColor(...col);doc.rect(M,y,3,5,'F');
+    doc.setTextColor(216,237,230);doc.setFontSize(11);doc.setFont('helvetica','bold');
+    doc.text(txt,M+6,y+4);y+=12;
+  };
+  const row=(label,val,valColor=[216,237,230])=>{
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    doc.setTextColor(106,143,128);doc.text(label+':',M,y);
+    doc.setTextColor(...valColor);doc.text(String(val),M+65,y);y+=7;
+  };
+  const divider=()=>{doc.setDrawColor(30,50,40);doc.line(M,y,W-M,y);y+=8;};
+  if(tab==='xray'&&xrayResult){
+    const ip=xrayResult.prediction==='PNEUMONIA';
+    heading('X-Ray Analysis');
+    row('Prediction',xrayResult.prediction,ip?[255,61,90]:[0,229,160]);
+    row('Confidence',`${xrayResult.confidence}%`);
+    row('Risk Zone',xrayResult.risk_zone,ip?[255,61,90]:[0,229,160]);
+    divider();
+    heading('Grad-CAM Note');
+    doc.setFontSize(9);doc.setTextColor(106,143,128);
+    doc.text(ip?"Heatmap shows high activation in affected lung regions.":"Low activation — normal lung tissue pattern.",M,y,{maxWidth:W-2*M});y+=14;
+    if(xrayPreview){try{doc.addImage(xrayPreview,'JPEG',M,y,75,65);y+=72;}catch(e){}}
+  } else if(result){
+    if(tab==='combined'){
+      heading('Overall Risk Assessment');
+      const zc=result.risk_zone==='RED'?[255,61,90]:result.risk_zone==='YELLOW'?[240,192,64]:[0,229,160];
+      row('Risk Score',`${result.risk_score} / 100`,zc);
+      row('Risk Zone',result.risk_zone,zc);
+      row('Alert',result.alert?'YES — Consult physician':'No immediate concern',result.alert?[255,61,90]:[0,229,160]);
+      divider();
+      heading('Diabetes');row('Probability',`${result.diabetes.probability}%`);row('Prediction',result.diabetes.prediction);
+      divider();
+      heading('Heart Disease');row('Probability',`${result.heart_disease.probability}%`);row('Prediction',result.heart_disease.prediction);
+      divider();
+      heading('Top Risk Factors — Diabetes');
+      result.diabetes.top_factors?.forEach(f=>{row(f.feature,`${f.shap_value>0?'+':''}${f.shap_value.toFixed(4)}`,f.shap_value>0?[255,61,90]:[56,182,255]);});
+      divider();
+      heading('Top Risk Factors — Heart');
+      result.heart_disease.top_factors?.forEach(f=>{row(f.feature,`${f.shap_value>0?'+':''}${f.shap_value.toFixed(4)}`,f.shap_value>0?[255,61,90]:[56,182,255]);});
+    } else {
+      heading(tab==='diabetes'?'Diabetes Screening':'Heart Disease Screening');
+      const zc=result.risk_zone==='RED'?[255,61,90]:result.risk_zone==='YELLOW'?[240,192,64]:[0,229,160];
+      row('Prediction',result.prediction,zc);row('Probability',`${result.probability}%`);
+      row('Risk Zone',result.risk_zone,zc);row('Threshold',result.threshold);
+      divider();heading('Top Risk Factors (SHAP)');
+      result.top_factors?.forEach(f=>{row(f.feature,`${f.shap_value>0?'+':''}${f.shap_value.toFixed(4)}`,f.shap_value>0?[255,61,90]:[56,182,255]);});
+    }
+  }
+  y=Math.max(y,262);
+  doc.setDrawColor(20,42,30);doc.line(M,y,W-M,y);y+=6;
+  doc.setFontSize(7.5);doc.setTextColor(58,90,74);
+  doc.text('⚠ Screening purposes only. Consult a qualified physician for diagnosis and treatment.',M,y,{maxWidth:W-2*M});
+  doc.save(`MedGuard_${tab}_${Date.now()}.pdf`);
+}
+
+function PDFButton({tab,result,xrayPreview,xrayResult}){
+  return(
+    <button className="btn btn-pdf" onClick={()=>generatePDF({tab,result,xrayPreview,xrayResult})}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      PDF Report
+    </button>
+  );
+}
+
+/* ── X-Ray Tab ── */
+function XrayTab({apiStatus}){
+  const [imgFile,setImgFile]=useState(null);
+  const [preview,setPreview]=useState(null);
+  const [result,setResult]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState(null);
+  const [drag,setDrag]=useState(false);
+  const ref=useRef();
+  const handleFile=file=>{
+    if(!file||!file.type.startsWith("image/")) return;
+    setImgFile(file);setResult(null);setError(null);
+    const r=new FileReader();r.onload=e=>setPreview(e.target.result);r.readAsDataURL(file);
+  };
+  const analyze=async()=>{
+    setLoading(true);setError(null);
+    try{
+      const fd=new FormData();fd.append("file",imgFile);
+      const r=await fetch(`${API}/predict/xray`,{method:"POST",body:fd});
+      if(!r.ok) throw new Error(`Server error ${r.status}`);
+      setResult(await r.json());
+    }catch(e){setError(e.message);}finally{setLoading(false);}
+  };
+  const ip=result?.prediction==="PNEUMONIA";
+  return(
+    <div style={{maxWidth:660}}>
+      <div className={`upload-zone ${drag?"dragover":""}`}
+        onClick={()=>ref.current.click()}
+        onDragOver={e=>{e.preventDefault();setDrag(true)}}
+        onDragLeave={()=>setDrag(false)}
+        onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0])}}>
+        <input ref={ref} type="file" accept="image/*" onChange={e=>handleFile(e.target.files[0])}/>
+        {preview
+          ?<img src={preview} className="preview-img" alt="xray"/>
+          :<>
+            <div className="upload-icon">🫁</div>
+            <div style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--text2)',letterSpacing:'.05em'}}>Drop chest X-Ray here or click to upload</div>
+            <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--text3)',marginTop:6,letterSpacing:'.1em'}}>JPG · PNG · JPEG</div>
+          </>}
+      </div>
+      {preview&&!result&&(
+        <button className="btn btn-primary" onClick={analyze} disabled={loading||apiStatus!=="ok"}>
+          {loading?<><div className="spinner"/>Scanning...</>:<>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            Analyze X-Ray
+          </>}
+        </button>
+      )}
+      {error&&<div className="error-msg">⚠ {error}</div>}
+      {result&&(
+        <div className="card fade-up" style={{marginTop:18}}>
+          <CardTitle>X-Ray Analysis Result</CardTitle>
+          <div className="xray-label" style={{color:ip?"var(--red)":"var(--green)"}}>
+            {ip?"⚠ Pneumonia":"✓ Normal"}
+          </div>
+          <div style={{textAlign:'center',fontFamily:'var(--font-mono)',fontSize:12,color:'var(--text2)',marginTop:4}}>
+            Confidence: <strong style={{color:'var(--text)'}}>{result.confidence}%</strong>
+          </div>
+          <div style={{textAlign:'center',marginTop:8}}>
+            <span className={`xray-badge zone-${ip?"RED":"GREEN"}`}>
+              {ip?"HIGH RISK — Medical attention needed":"Low Risk — No pneumonia detected"}
+            </span>
+          </div>
+          <div className="section-divider"/>
+          {[{l:'PNEUMONIA',v:result.probability,c:'linear-gradient(90deg,#cc1f3a,#ff3d5a)',t:'var(--red)'},
+            {l:'NORMAL',v:+(100-result.probability).toFixed(1),c:'linear-gradient(90deg,#005a3a,#00e5a0)',t:'var(--green)'}
+          ].map((item,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:12,marginBottom:9}}>
+              <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--text2)',width:80,letterSpacing:'.06em'}}>{item.l}</span>
+              <div style={{flex:1,height:5,background:'rgba(255,255,255,.04)',borderRadius:3,overflow:'hidden'}}>
+                <div style={{width:`${item.v}%`,height:'100%',background:item.c,borderRadius:3,transition:'width .9s cubic-bezier(.4,0,.2,1)'}}/>
+              </div>
+              <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:item.t,width:42,textAlign:'right'}}>{item.v}%</span>
+            </div>
+          ))}
+          <GradCAMOverlay imgSrc={preview} isPneumonia={ip}/>
+          <div style={{display:'flex',gap:9,marginTop:18,flexWrap:'wrap'}}>
+            <PDFButton tab="xray" xrayPreview={preview} xrayResult={result}/>
+            <button className="btn btn-ghost" onClick={()=>{setResult(null);setPreview(null);setImgFile(null)}}>
+              ↩ New Scan
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── App ── */
+function App(){
+  const [tab,setTab]=useState("combined");
+  const [dForm,setDForm]=useState(buildDef(D_FIELDS));
+  const [hForm,setHForm]=useState(buildDef(H_FIELDS));
+  const [result,setResult]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState(null);
+  const [apiStatus,setApiStatus]=useState("checking");
+
+  useEffect(()=>{
+    fetch(`${API}/health`).then(r=>r.json()).then(()=>setApiStatus("ok")).catch(()=>setApiStatus("offline"));
+  },[]);
+
+  const upD=(k,v)=>setDForm(p=>({...p,[k]:v}));
+  const upH=(k,v)=>setHForm(p=>({...p,[k]:v}));
+
+  const submit=async()=>{
+    setLoading(true);setError(null);setResult(null);
+    try{
+      let ep,body;
+      if(tab==="diabetes"){ep="/predict/diabetes";body=dForm;}
+      else if(tab==="heart"){ep="/predict/heart";body=hForm;}
+      else{ep="/predict/combined";body={diabetes:dForm,heart:hForm};}
+      const r=await fetch(`${API}${ep}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!r.ok) throw new Error(`Server error ${r.status}`);
+      setResult(await r.json());
+    }catch(e){setError(e.message);}finally{setLoading(false);}
+  };
+
+  const zc=z=>z==="RED"?"var(--red)":z==="YELLOW"?"var(--yellow)":"var(--green)";
+
+  const TABS=[
+    {id:"combined",icon:"⬡",label:"Combined"},
+    {id:"diabetes",icon:"◈",label:"Diabetes"},
+    {id:"heart",icon:"♡",label:"Heart"},
+    {id:"xray",icon:"🫁",label:"X-Ray"},
+  ];
+
+  return(
+    <div className="app">
+      <div className="bg-layer">
+        <canvas className="bg-canvas" id="bgCanvas"/>
+        <div className="bg-grid"/>
+        <div className="bg-radial"/>
+        <div className="bg-scan"/>
+      </div>
+      <div className="content">
+
+        {/* ── Header ── */}
+        <div className="header">
+          <div className="logo">
+            <div className="logo-mark"><ShieldIcon/></div>
+            <div>
+              <div className="logo-name">Med<span>Guard</span> AI</div>
+              <div className="logo-tagline">Multimodal Disease Screening</div>
+            </div>
+          </div>
+          <div className={`api-pill ${apiStatus}`}>
+            <div className={`api-dot ${apiStatus}`}/>
+            {apiStatus==="ok"?"API Online":apiStatus==="checking"?"Connecting…":"API Offline"}
+          </div>
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="tabs-wrap">
+          <div className="tabs">
+            {TABS.map(({id,icon,label})=>(
+              <button key={id} className={`tab ${tab===id?"active":""}`}
+                onClick={()=>{setTab(id);setResult(null);setError(null);}}>
+                <span className="tab-icon">{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── X-Ray ── */}
+        {tab==="xray"&&<XrayTab apiStatus={apiStatus}/>}
+
+        {/* ── Forms + Results ── */}
+        {tab!=="xray"&&(
+          <div className={`main-grid ${result?"":"no-result"}`}>
+            <div>
+              {(tab==="diabetes"||tab==="combined")&&(
+                <div className="card">
+                  <CardTitle>Diabetes Patient Data</CardTitle>
+                  <div className="form-grid">
+                    {D_FIELDS.map(f=><Field key={f.key} f={f} val={dForm[f.key]} onChange={upD}/>)}
+                  </div>
+                </div>
+              )}
+              {(tab==="heart"||tab==="combined")&&(
+                <div className="card">
+                  <CardTitle>Heart Disease Patient Data</CardTitle>
+                  <div className="form-grid">
+                    {H_FIELDS.map(f=><Field key={f.key} f={f} val={hForm[f.key]} onChange={upH}/>)}
+                  </div>
+                </div>
+              )}
+              <div style={{display:'flex',gap:10,flexWrap:'wrap',marginTop:4}}>
+                <button className="btn btn-primary" onClick={submit} disabled={loading||apiStatus!=="ok"}>
+                  {loading
+                    ?<><div className="spinner"/>Analyzing…</>
+                    :<>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      Run Analysis
+                    </>}
+                </button>
+              </div>
+              {apiStatus==="offline"&&<div className="error-msg" style={{marginTop:12}}>⚠ Server offline — uvicorn main:app --reload --port 8001</div>}
+              {error&&<div className="error-msg">⚠ {error}</div>}
+            </div>
+
+            {result&&(
+              <div className="fade-up">
+                {tab==="combined"&&<>
+                  {result.alert
+                    ?<div className="alert alert-red"><div className="alert-dot red"/>HIGH RISK — Immediate medical consultation recommended</div>
+                    :<div className="alert alert-green"><div className="alert-dot green"/>Risk manageable — Continue regular monitoring</div>}
+                  <div className="card">
+                    <CardTitle>Overall Risk Score</CardTitle>
+                    <Gauge score={result.risk_score} zone={result.risk_zone}/>
+                  </div>
+                  <div className="grid2">
+                    <div className="stat">
+                      <div className="stat-label">Diabetes Risk</div>
+                      <div className="stat-value" style={{color:zc(result.diabetes.risk_zone)}}>{result.diabetes.probability}%</div>
+                      <div className="stat-sub">{result.diabetes.prediction}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">Heart Disease Risk</div>
+                      <div className="stat-value" style={{color:zc(result.heart_disease.risk_zone)}}>{result.heart_disease.probability}%</div>
+                      <div className="stat-sub">{result.heart_disease.prediction}</div>
+                    </div>
+                  </div>
+                  <div className="card">
+                    <CardTitle>Diabetes — SHAP Factors</CardTitle>
+                    <ShapBars factors={result.diabetes.top_factors}/>
+                  </div>
+                  <div className="card">
+                    <CardTitle>Heart Disease — SHAP Factors</CardTitle>
+                    <ShapBars factors={result.heart_disease.top_factors}/>
+                  </div>
+                  <PDFButton tab="combined" result={result}/>
+                </>}
+
+                {(tab==="diabetes"||tab==="heart")&&<>
+                  <div className="card">
+                    <CardTitle>Risk Score</CardTitle>
+                    <Gauge score={result.probability} zone={result.risk_zone}/>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-label">Prediction</div>
+                    <div className="stat-value" style={{fontSize:28,color:zc(result.risk_zone)}}>{result.prediction}</div>
+                    <div className="stat-sub">Threshold: {result.threshold}</div>
+                  </div>
+                  <div className="card">
+                    <CardTitle>Top Risk Factors (SHAP)</CardTitle>
+                    <ShapBars factors={result.top_factors}/>
+                  </div>
+                  <PDFButton tab={tab} result={result}/>
+                </>}
+              </div>
+            )}
+
+            {!result&&!loading&&(
+              <div className="empty fade-in">
+                <div className="empty-glyph">⬡</div>
+                <div style={{color:'var(--text3)',letterSpacing:'.08em',fontSize:11}}>Fill in patient data</div>
+                <div style={{color:'var(--green)',marginTop:6,fontSize:11,letterSpacing:'.06em'}}>and run analysis</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>
+(function(){
+  const canvas=document.getElementById('bgCanvas');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  let W,H,raf;
+
+  function resize(){
+    W=canvas.width=window.innerWidth;
+    H=canvas.height=window.innerHeight;
+  }
+  window.addEventListener('resize',resize);
+  resize();
+
+  const G='rgba(0,229,160,';
+  const B='rgba(56,182,255,';
+  const T=Date.now();
+
+  /* ── Floating nodes (cell network) ── */
+  const NODES=Array.from({length:28},(_,i)=>({
+    x:Math.random()*1.2-0.1,y:Math.random()*1.2-0.1,
+    vx:(Math.random()-.5)*0.00012,vy:(Math.random()-.5)*0.00012,
+    r:Math.random()*2+1.2,
+    alpha:Math.random()*0.25+0.08,
+    blue:i%5===0
+  }));
+
+  /* ── DNA helix params ── */
+  const HELIX=[
+    {x:0.88,speed:0.0006,alpha:0.13,color:G},
+    {x:0.06,speed:0.0005,alpha:0.10,color:B},
+  ];
+
+  /* ── ECG pulse path ── */
+  function ecgY(t,i){
+    const p=((t*0.0003+i*0.18)%1);
+    if(p<0.3) return 0;
+    if(p<0.35) return -(p-0.3)/0.05*18;
+    if(p<0.38) return -18+(p-0.35)/0.03*36;
+    if(p<0.42) return 18-(p-0.38)/0.04*28;
+    if(p<0.46) return -10+(p-0.42)/0.04*14;
+    if(p<0.52) return 4-(p-0.46)/0.06*4;
+    return 0;
+  }
+
+  function draw(){
+    const t=Date.now()-T;
+    ctx.clearRect(0,0,W,H);
+
+    /* ── DNA Helices ── */
+    HELIX.forEach(h=>{
+      const cx=W*h.x;
+      const pts=80,seg=H/pts;
+      ctx.lineWidth=1.2;
+
+      for(let s=0;s<2;s++){
+        ctx.beginPath();
+        for(let i=0;i<=pts;i++){
+          const y=i*seg;
+          const phase=t*h.speed+(s?Math.PI:0);
+          const x=cx+Math.sin(i*0.22+phase)*28;
+          i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle=h.color+h.alpha+')';
+        ctx.stroke();
+      }
+
+      /* rungs */
+      for(let i=0;i<pts;i+=3){
+        const y=i*seg;
+        const phase=t*h.speed;
+        const x1=cx+Math.sin(i*0.22+phase)*28;
+        const x2=cx+Math.sin(i*0.22+phase+Math.PI)*28;
+        const bright=Math.abs(Math.sin(i*0.22+phase));
+        ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);
+        ctx.strokeStyle=h.color+(h.alpha*bright*1.4)+')';
+        ctx.lineWidth=0.8;ctx.stroke();
+      }
+    });
+
+    /* ── ECG Lines ── */
+    const ecgLines=[
+      {y:0.18,alpha:0.12,col:G,speed:1},
+      {y:0.55,alpha:0.08,col:B,speed:0.8},
+      {y:0.82,alpha:0.07,col:G,speed:1.2},
+    ];
+    ecgLines.forEach(el=>{
+      const baseY=H*el.y;
+      ctx.beginPath();
+      const steps=Math.ceil(W/3);
+      for(let i=0;i<steps;i++){
+        const x=(i/steps)*W;
+        const tt=t*el.speed-(i/steps)*1200;
+        const y=baseY+ecgY(tt,0);
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=el.col+el.alpha+')';
+      ctx.lineWidth=1;ctx.stroke();
+
+      /* glow duplicate */
+      ctx.beginPath();
+      for(let i=0;i<steps;i++){
+        const x=(i/steps)*W;
+        const tt=t*el.speed-(i/steps)*1200;
+        const y=baseY+ecgY(tt,0);
+        const amp=Math.abs(ecgY(tt,0));
+        if(amp>12){i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+        else ctx.moveTo(x,y);
+      }
+      ctx.strokeStyle=el.col+(el.alpha*2.5)+')';
+      ctx.lineWidth=1.5;ctx.stroke();
+    });
+
+    /* ── Floating nodes ── */
+    NODES.forEach(n=>{
+      n.x+=n.vx;n.y+=n.vy;
+      if(n.x<-0.15)n.x=1.15;if(n.x>1.15)n.x=-0.15;
+      if(n.y<-0.15)n.y=1.15;if(n.y>1.15)n.y=-0.15;
+    });
+
+    /* connections */
+    for(let i=0;i<NODES.length;i++){
+      for(let j=i+1;j<NODES.length;j++){
+        const dx=(NODES[i].x-NODES[j].x)*W;
+        const dy=(NODES[i].y-NODES[j].y)*H;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<160){
+          const a=(1-dist/160)*0.06;
+          ctx.beginPath();
+          ctx.moveTo(NODES[i].x*W,NODES[i].y*H);
+          ctx.lineTo(NODES[j].x*W,NODES[j].y*H);
+          ctx.strokeStyle=G+a+')';
+          ctx.lineWidth=0.6;ctx.stroke();
+        }
+      }
+    }
+
+    /* dots */
+    NODES.forEach(n=>{
+      const pulse=Math.sin(t*0.002+n.x*10)*0.4+0.6;
+      ctx.beginPath();
+      ctx.arc(n.x*W,n.y*H,n.r*pulse,0,Math.PI*2);
+      const col=n.blue?B:G;
+      ctx.fillStyle=col+(n.alpha*pulse)+')';
+      ctx.fill();
+    });
+
+    /* ── Subtle hexagons ── */
+    const HEX=[{x:.5,y:.25,s:90},{x:.2,y:.65,s:60},{x:.78,y:.55,s:70}];
+    HEX.forEach(h=>{
+      const cx=W*h.x,cy=H*h.y;
+      const rot=t*0.0001;
+      ctx.beginPath();
+      for(let i=0;i<6;i++){
+        const a=rot+i*Math.PI/3;
+        const x=cx+h.s*Math.cos(a);
+        const y=cy+h.s*Math.sin(a);
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle=G+'0.035)';ctx.lineWidth=1;ctx.stroke();
+    });
+
+    raf=requestAnimationFrame(draw);
+  }
+
+  draw();
+})();
+</script>
+</body>
+</html>
